@@ -1,3 +1,5 @@
+[![HitCount](http://hits.dwyl.io/YTiStrafeNubzHD/Slapper.svg)](http://hits.dwyl.io/YTiStrafeNubzHD/Slapper)
+
 # Slapper
 The new home of Slapper, the NPC plugin for PocketMine-MP.
 
