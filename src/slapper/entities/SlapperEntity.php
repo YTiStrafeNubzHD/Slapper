@@ -2,65 +2,40 @@
 namespace slapper\entities;
 
 use pocketmine\entity\Entity;
+use pocketmine\item\ItemFactory;
+use pocketmine\item\ItemIds;
 use pocketmine\level\Level;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\FloatTag;
-use pocketmine\nbt\tag\IntTag;
 use pocketmine\network\mcpe\protocol\AddEntityPacket;
+use pocketmine\network\mcpe\protocol\AddPlayerPacket; 
+use pocketmine\network\mcpe\protocol\MoveEntityPacket; 
+use pocketmine\network\mcpe\protocol\RemoveEntityPacket; 
+use pocketmine\network\mcpe\protocol\SetEntityDataPacket; 
 use pocketmine\Player;
+use pocketmine\utils\UUID; 
+use Slapper\SlapperTrait;
 
 class SlapperEntity extends Entity {
-
+	use SlapperTrait;
+	
 	const TYPE_ID = 0;
 	const HEIGHT = 0;
 
+	/** @var int */
+	private $tagId;
+	
 	public function __construct(Level $level, CompoundTag $nbt) {
+		$this->height = static::HEIGHT;
+		$this->width = $this->width ?? 1; //polyfill
+		$this->tagId = Entity::$entityCount++; 
 		parent::__construct($level, $nbt);
 		$this->prepareMetadata();
-	}
-
-	public function prepareMetadata() {
-		if(!$this->namedtag->hasTag("NameVisibility", IntTag::class)) {
-			$this->namedtag->setInt("NameVisibility", 2, true);
-		}
-		switch ($this->namedtag->getInt("NameVisibility")) {
-			case 0:
-				$this->setNameTagVisible(false);
-				$this->setNameTagAlwaysVisible(false);
-				break;
-			case 1:
-				$this->setNameTagVisible(true);
-				$this->setNameTagAlwaysVisible(false);
-				break;
-			case 2:
-				$this->setNameTagVisible(true);
-				$this->setNameTagAlwaysVisible(true);
-				break;
-			default:
-				$this->setNameTagVisible(true);
-				$this->setNameTagAlwaysVisible(true);
-				break;
-		}
-		$this->setDataFlag(self::DATA_FLAGS, self::DATA_FLAG_IMMOBILE, true);
-		if(!$this->namedtag->hasTag("Scale", FloatTag::class)) {
-			$this->namedtag->setFloat("Scale", 1.0, true);
-		}
-		$this->getDataPropertyManager()->setPropertyValue(self::DATA_SCALE, self::DATA_TYPE_FLOAT, $this->namedtag->getFloat("Scale"));
-		$this->getDataPropertyManager()->setPropertyValue(self::DATA_BOUNDING_BOX_HEIGHT, self::DATA_TYPE_FLOAT, static::HEIGHT);
+		$this->setNameTagVisible(false);
 	}
 
 	public function saveNBT() : void{
 		parent::saveNBT();
-		$visibility = 0;
-		if($this->isNameTagVisible()) {
-			$visibility = 1;
-			if($this->isNameTagAlwaysVisible()) {
-				$visibility = 2;
-			}
-		}
-		$scale = $this->getDataPropertyManager()->getFloat(Entity::DATA_SCALE);
-		$this->namedtag->setInt("NameVisibility", $visibility, true);
-		$this->namedtag->setFloat("Scale", $scale, true);
+		$this->saveSlapperNbt();
 	}
 
 	protected function sendSpawnPacket(Player $player) : void{
@@ -71,18 +46,37 @@ class SlapperEntity extends Entity {
 		$pk->yaw = $this->yaw;
 		$pk->pitch = $this->pitch;
 		$pk->metadata = $this->getDataPropertyManager()->getAll();
-		$pk->metadata[self::DATA_NAMETAG] = [self::DATA_TYPE_STRING, $this->getDisplayName($player)];
-
+		unset($pk->metadata[self::DATA_NAMETAG]); 
+		
+		$player->dataPacket($pk); 
+		
+		$pk2 = new AddPlayerPacket(); 
+		$pk2->entityRuntimeId = $this->tagId; 
+		$pk2->uuid = UUID::fromRandom(); 
+		$pk2->username = $this->getDisplayName($player); 
+		$pk2->position = $this->asVector3()->add(0, static::HEIGHT);
+		$pk2->item = ItemFactory::get(ItemIds::AIR);
+		$pk2->metadata = [self::DATA_SCALE => [self::DATA_TYPE_FLOAT, 0.0]];
+		
+		$player->dataPacket($pk2);
+	}
+	
+	public function sendNameTag(Player $player) {
+		$pk = new SetEntityDataPacket(); 
+		$pk->entityRuntimeId = $this->tagId; 
+		$pk->metadata = [self::DATA_NAMETAG => [self::DATA_TYPE_STRING, $this->getDisplayName($player)]];
 		$player->dataPacket($pk);
 	}
-
-	public function getDisplayName(Player $player) {
-		$vars = [
-			"{name}" => $player->getName(),
-			"{display_name}" => $player->getName(),
-			"{nametag}" => $player->getNameTag()
-		];
-		return str_replace(array_keys($vars), array_values($vars), $this->getNameTag());
+	
+	public function broadcastMovement(bool $teleport = false) {
+		if($this->chunk !== null) {
+			parent::broadcastMovement($teleport); 
+			$pk = new MoveEntityPacket(); 
+			$pk->entityRuntimeId = $this->tagId; 
+			$pk->position = $this->asVector3()->add(0, static::HEIGHT + 1.62); 
+			$pk->yaw = $pk->pitch = $pk->headYaw = 0; 
+			
+			$this->level->addChunkPacket($this->chunk->getX(), $this->chunk->getZ(), $pk); 
+		}
 	}
-
 }

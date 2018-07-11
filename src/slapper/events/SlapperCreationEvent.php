@@ -7,8 +7,6 @@ use pocketmine\Player;
 use pocketmine\entity\Entity;
 
 class SlapperCreationEvent extends EntityEvent {
-	public static $handlerList = null;
-
 	const CAUSE_COMMAND = 0;
 
 	/** @var Entity */
@@ -34,23 +32,23 @@ class SlapperCreationEvent extends EntityEvent {
 		$this->cause = $cause;
 	}
 
-	public function getEntity() {
+	public function getEntity() : Entity {
 		return $this->entity;
 	}
 
-	public function getCreator() {
+	public function getCreator() : ?Player {
 		return $this->creator;
 	}
 
-	public function hasCreator() {
+	public function hasCreator() : bool {
 		return $this->creator !== null;
 	}
 
-	public function getCause() {
+	public function getCause() : int {
 		return $this->cause;
 	}
 
-	public function getType() {
+	public function getType() : string {
 		return $this->type;
 	}
 

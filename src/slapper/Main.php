@@ -2,6 +2,7 @@
 
 namespace slapper;
 
+use pocketmine\block\BlockFactory;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\command\ConsoleCommandSender;
@@ -13,9 +14,6 @@ use pocketmine\event\Listener;
 use pocketmine\Item\Item;
 
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\DoubleTag;
-use pocketmine\nbt\tag\FloatTag;
-use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\Player;
 use pocketmine\plugin\PluginBase;
@@ -111,7 +109,7 @@ class Main extends PluginBase implements Listener {
 	public $hitSessions = [];
 	/** @var array */
 	public $idSessions = [];
-	/** @vae string */
+	/** @var string */
 	public $prefix = TextFormat::GREEN . "[" . TextFormat::YELLOW . "Slapper" . TextFormat::GREEN . "] ";
 	/** @var string */
 	public $noperm = TextFormat::GREEN . "[" . TextFormat::YELLOW . "Slapper" . TextFormat::GREEN . "] You don't have permission.";
@@ -139,7 +137,6 @@ class Main extends PluginBase implements Listener {
 		"boots: /slapper edit <eid> boots <id>",
 		"skin: /slapper edit <eid> skin",
 		"name: /slapper edit <eid> name <name>",
-		"namevisibility: /slapper edit <eid> namevisibility <never/hover/always>",
 		"addcommand: /slapper edit <eid> addcommand <command>",
 		"delcommand: /slapper edit <eid> delcommand <command>",
 		"listcommands: /slapper edit <eid> listcommands",
@@ -153,7 +150,7 @@ class Main extends PluginBase implements Listener {
 	/**
 	 * @return void
 	 */
-	public function onEnable() {
+	public function onEnable() : void {
 		foreach ([
 			         SlapperCreeper::class, SlapperBat::class, SlapperSheep::class,
 			         SlapperPigZombie::class, SlapperGhast::class, SlapperBlaze::class,
@@ -413,51 +410,6 @@ class Main extends PluginBase implements Listener {
 														}
 														return true;
 														break;
-													case "namevisibility":
-													case "namevisible":
-													case "customnamevisible":
-													case "tagvisible":
-													case "name_visible":
-														if(isset($args[2])) {
-															switch (strtolower($args[2])) {
-																case "a":
-																case "always":
-																case "1":
-																	$entity->setNameTagVisible(true);
-																	$entity->setNameTagAlwaysVisible(true);
-																	$entity->sendData($entity->getViewers());
-																	$sender->sendMessage($this->prefix . "Name visibility has been updated.");
-																	return true;
-																	break;
-																case "h":
-																case "hover":
-																case "lookingat":
-																case "onhover":
-																	$entity->setNameTagVisible(true);
-																	$entity->setNameTagAlwaysVisible(false);
-																	$entity->sendData($entity->getViewers());
-																	$sender->sendMessage($this->prefix . "Name visibility has been updated.");
-																	return true;
-																	break;
-																case "n":
-																case "never":
-																case "no":
-																case "0":
-																	$entity->setNameTagVisible(false);
-																	$entity->setNameTagAlwaysVisible(false);
-																	$entity->sendData($entity->getViewers());
-																	$sender->sendMessage($this->prefix . "Name visibility has been updated.");
-																	return true;
-																	break;
-																default:
-																	$sender->sendMessage($this->prefix . "Please enter a value, \"always\", \"hover\", or \"never\".");
-																	return true;
-																	break;
-															}
-														} else {
-															$sender->sendMessage($this->prefix . "Please enter a value, \"always\", \"hover\", or \"never\".");
-														}
-														return true;
 													case "addc":
 													case "addcmd":
 													case "addcommand":
@@ -520,7 +472,8 @@ class Main extends PluginBase implements Listener {
 														if(isset($args[2])) {
 															if($entity instanceof SlapperFallingSand) {
 																$data = explode(":", $args[2]);
-																$entity->getDataPropertyManager()->setPropertyValue(Entity::DATA_VARIANT, Entity::DATA_TYPE_INT, ((int) ($data[0] ?? 1)) | (((int) ($data[1] ?? 0)) << 8));
+																//haxx: we shouldn't use toStaticRuntimeId() because it's internal, but there isn't really any better option at the moment
+																$entity->getDataPropertyManager()->setInt(Entity::DATA_VARIANT, BlockFactory::toStaticRuntimeId((int) ($data[0] ?? 1), (int) ($data[1] ?? 0)));
 																$entity->sendData($entity->getViewers());
 																$sender->sendMessage($this->prefix . "Block updated.");
 															} else {
@@ -553,7 +506,7 @@ class Main extends PluginBase implements Listener {
 													case "size":
 														if(isset($args[2])) {
 															$scale = (float) $args[2];
-															$entity->getDataPropertyManager()->setPropertyValue(Entity::DATA_SCALE, Entity::DATA_TYPE_FLOAT, $scale);
+															$entity->getDataPropertyManager()->setFloat(Entity::DATA_SCALE, $scale);
 															$entity->sendData($entity->getViewers());
 															$sender->sendMessage($this->prefix . "Updated scale.");
 														} else {
@@ -633,12 +586,9 @@ class Main extends PluginBase implements Listener {
 								$sender->sendMessage($this->prefix . "Invalid entity type.");
 								return true;
 							}
-							$nbt = $this->makeNBT($chosenType, $sender);
+							$nbt = $this->makeNBT($chosenType, $sender, $name);
 							/** @var SlapperEntity $entity */
 							$entity = Entity::createEntity("Slapper" . $chosenType, $sender->getLevel(), $nbt);
-							$entity->setNameTag($name);
-							$entity->setNameTagVisible(true);
-							$entity->setNameTagAlwaysVisible(true);
 							$this->getServer()->getPluginManager()->callEvent(new SlapperCreationEvent($entity, "Slapper" . $chosenType, $sender, SlapperCreationEvent::CAUSE_COMMAND));
 							$entity->spawnToAll();
 							$sender->sendMessage($this->prefix . $chosenType . " entity spawned with name " . TextFormat::WHITE . "\"" . TextFormat::BLUE . $name . TextFormat::WHITE . "\"" . TextFormat::GREEN . " and entity ID " . TextFormat::BLUE . $entity->getId());
@@ -658,28 +608,16 @@ class Main extends PluginBase implements Listener {
 	/**
 	 * @param string $type
 	 * @param Player $player
+	 * @param string $name
 	 *
 	 * @return CompoundTag
 	 */
-	private function makeNBT($type, Player $player) {
-		$nbt = new CompoundTag;
-		$nbt->setTag(new ListTag("Pos", [
-			new DoubleTag("", $player->getX()),
-			new DoubleTag("", $player->getY()),
-			new DoubleTag("", $player->getZ())
-		]));
-		$nbt->setTag(new ListTag("Motion", [
-			new DoubleTag("", 0),
-			new DoubleTag("", 0),
-			new DoubleTag("", 0)
-		]));
-		$nbt->setTag(new ListTag("Rotation", [
-			new FloatTag("", $player->getYaw()),
-			new FloatTag("", $player->getPitch())
-		]));
+	private function makeNBT($type, Player $player, string $name) : CompoundTag {
+		$nbt = Entity::createBaseNBT($player, null, $player->getYaw(), $player->getPitch());
 		$nbt->setShort("Health", 1);
 		$nbt->setTag(new CompoundTag("Commands", []));
 		$nbt->setString("MenuName", "");
+		$nbt->setString("CustomName", $name);
 		$nbt->setString("SlapperVersion", $this->getDescription()->getVersion());
 		if($type === "Human") {
 			$player->saveNBT();
@@ -687,10 +625,10 @@ class Main extends PluginBase implements Listener {
 			$inventoryTag = $player->namedtag->getListTag("Inventory");
 			assert($inventoryTag !== null);
 			$nbt->setTag(clone $inventoryTag);
-			$nbt->setTag(new CompoundTag("Skin", [
-				new StringTag("Data", $player->getSkin()->getSkinData()),
-				new StringTag("Name", $player->getSkin()->getSkinId())
-			]));
+			
+				$skinTag = $player->namedtag->getCompoundTag("Skin"); 
+				assert($skinTag !== null); 
+				$nbt->setTag(clone $skinTag); 
 		}
 		return $nbt;
 	}
@@ -701,7 +639,7 @@ class Main extends PluginBase implements Listener {
 	 *
 	 * @return void
 	 */
-	public function onEntityDamage(EntityDamageEvent $event) {
+	public function onEntityDamage(EntityDamageEvent $event) : void {
 		$entity = $event->getEntity();
 		if($entity instanceof SlapperEntity || $entity instanceof SlapperHuman) {
 			$event->setCancelled(true);
@@ -747,7 +685,7 @@ class Main extends PluginBase implements Listener {
 	 *
 	 * @return void
 	 */
-	public function onEntitySpawn(EntitySpawnEvent $ev) {
+	public function onEntitySpawn(EntitySpawnEvent $ev) : void {
 		$entity = $ev->getEntity();
 		if($entity instanceof SlapperEntity || $entity instanceof SlapperHuman) {
 			$clearLagg = $this->getServer()->getPluginManager()->getPlugin("ClearLagg");

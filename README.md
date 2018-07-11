@@ -1,6 +1,8 @@
 [![HitCount](http://hits.dwyl.io/YTiStrafeNubzHD/Slapper.svg)](http://hits.dwyl.io/YTiStrafeNubzHD/Slapper)
 
 # Slapper
+<a href="https://discord.gg/n4hANRh"><img src="https://discordapp.com/api/guilds/412491783486832640/embed.png" alt="Discord server"/></a>
+
 The new home of Slapper, the NPC plugin for PocketMine-MP.
 
 ## NOTE
@@ -14,3 +16,4 @@ Official addons:
 - [SlapperRotation](https://github.com/jojoe77777/SlapperRotation)
 - [SlapperCache](https://github.com/jojoe77777/SlapperCache)
 - [SlapperPlus](https://github.com/jojoe77777/SlapperPlus)
+- [SlapperCooldown](https://github.com/jojoe77777/SlapperCooldown)
