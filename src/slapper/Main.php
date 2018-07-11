@@ -151,7 +151,7 @@ class Main extends PluginBase implements Listener {
 	/**
 	 * @return void
 	 */
-	public function onEnable() {
+	public function onEnable() : void {
 		foreach ([
 			         SlapperCreeper::class, SlapperBat::class, SlapperSheep::class,
 			         SlapperPigZombie::class, SlapperGhast::class, SlapperBlaze::class,
@@ -660,7 +660,7 @@ class Main extends PluginBase implements Listener {
 	 *
 	 * @return CompoundTag
 	 */
-	private function makeNBT($type, Player $player) {
+	private function makeNBT($type, Player $player) : CompoundTag {
 		$nbt = Entity::createBaseNBT($player, null, $player->getYaw(), $player->getPitch());
 		$nbt->setShort("Health", 1);
 		$nbt->setTag(new CompoundTag("Commands", []));
@@ -686,7 +686,7 @@ class Main extends PluginBase implements Listener {
 	 *
 	 * @return void
 	 */
-	public function onEntityDamage(EntityDamageEvent $event) {
+	public function onEntityDamage(EntityDamageEvent $event) : void {
 		$entity = $event->getEntity();
 		if($entity instanceof SlapperEntity || $entity instanceof SlapperHuman) {
 			$event->setCancelled(true);
@@ -732,7 +732,7 @@ class Main extends PluginBase implements Listener {
 	 *
 	 * @return void
 	 */
-	public function onEntitySpawn(EntitySpawnEvent $ev) {
+	public function onEntitySpawn(EntitySpawnEvent $ev) : void {
 		$entity = $ev->getEntity();
 		if($entity instanceof SlapperEntity || $entity instanceof SlapperHuman) {
 			$clearLagg = $this->getServer()->getPluginManager()->getPlugin("ClearLagg");
